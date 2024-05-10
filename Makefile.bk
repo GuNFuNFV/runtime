@@ -1,0 +1,44 @@
+# binary name
+APP = nf_p
+current_dir = $(shell pwd)
+SRCS-y := $(shell find ${current_dir} -name "*.c")
+headers := $(shell find ${current_dir} -name "*.h")
+
+all: build/$(APP) build/$(APP)-debug
+
+run: build/$(APP)
+	sudo build/nf_p -a 3b:00.0,mprq_en=1,mprq_log_stride_num=8 -n 8 -l 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46
+
+db: debug
+	sudo build/nf_p-debug
+
+debug: build/$(APP)-debug
+
+only_build: build/$(APP)
+
+PKGCONF ?= pkg-config
+CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk) -D_GNU_SOURCE -Wno-xxxx -w -Wall
+DEBUG_CFLAGS += -O0 -g $(shell $(PKGCONF) --cflags libdpdk) -D_GNU_SOURCE -Wno-xxxx -w -Wall
+LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk)
+DEBUGFLOAGS = -g -D DEBUG $(DEBUG_CFLAGS)
+INC := -Iheaders
+
+build/$(APP): $(SRCS-y) $(headers) Makefile headers | build
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(INC)
+
+build/$(APP)-debug:  $(SRCS-y) $(headers) Makefile headers| build
+	$(CC) $(DEBUGFLOAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(INC)
+
+build/$(APP)-shared: $(headers) Makefile $(PC_FILE) headers| build
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(INC)
+
+build/dpdk-devbind.py:
+	cp -f dpdk-devbind.py $@
+
+build:
+	@mkdir -p $@
+
+
+.PHONY: clean
+clean:
+	rm -rf build
